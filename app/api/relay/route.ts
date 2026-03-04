@@ -9,7 +9,7 @@ async function phase1(topic: string): Promise<string> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const msg = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
+    max_tokens: 4096,
     messages: [{ role: 'user', content: `다음 주제에 대해 논리적이고 체계적인 초안을 작성해 주세요:\n\n${topic}` }],
   })
   return (msg.content[0] as { text: string }).text
@@ -19,7 +19,7 @@ async function phase2(topic: string, draft: string): Promise<string> {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   const res = await client.chat.completions.create({
     model: 'gpt-4o',
-    max_tokens: 1024,
+    max_tokens: 4096,
     messages: [
       { role: 'system', content: '당신은 냉철한 비평가입니다. 주어진 글의 논리적 허점, 모순, 근거 부족, 반례 등을 무자비하게 지적하세요. 감정 없이 오직 논리적 결함만 분석하세요.' },
       { role: 'user', content: `주제: ${topic}\n\n아래 초안을 비판해 주세요:\n\n${draft}` },
