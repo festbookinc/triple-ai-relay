@@ -9,9 +9,9 @@ interface Phase {
 }
 
 const PHASES = [
-  { label: 'Phase 1 — Maker', model: 'claude-sonnet-4-6', accent: 'border-l-[var(--phase-1)]', badge: 'bg-zinc-800 text-zinc-400' },
-  { label: 'Phase 2 — Checker', model: 'gpt-4o', accent: 'border-l-[var(--phase-2)]', badge: 'bg-zinc-800 text-zinc-400' },
-  { label: 'Phase 3 — Finisher', model: 'gemini-2.5-pro', accent: 'border-l-[var(--phase-3)]', badge: 'bg-zinc-800 text-zinc-400' },
+  { label: 'Phase 1 — Maker', model: 'claude-sonnet-4-6', accent: 'border-l-[var(--phase-1)]', badge: 'bg-sky-100 text-sky-700' },
+  { label: 'Phase 2 — Checker', model: 'gpt-4o', accent: 'border-l-[var(--phase-2)]', badge: 'bg-sky-100 text-sky-700' },
+  { label: 'Phase 3 — Finisher', model: 'gemini-2.5-pro', accent: 'border-l-[var(--phase-3)]', badge: 'bg-sky-100 text-sky-700' },
 ]
 
 export default function Home() {
@@ -32,8 +32,8 @@ export default function Home() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    if (!res.ok) throw new Error(await res.text())
     const data = await res.json()
+    if (!res.ok || data.error) throw new Error(data.error ?? `HTTP ${res.status}`)
     return data.content as string
   }
 
@@ -87,18 +87,18 @@ export default function Home() {
             disabled={running}
           />
           <button
-            className="px-7 py-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-40 rounded-xl font-medium text-white transition-colors"
+            className="px-8 py-3.5 rounded-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 text-white font-semibold text-[15px] tracking-tight shadow-[0_2px_8px_rgba(14,165,233,0.35)] hover:shadow-[0_4px_14px_rgba(14,165,233,0.4)] transition-all duration-200"
             onClick={run}
             disabled={running || !topic.trim()}
           >
-            {running ? '분석 중…' : '분석 시작'}
+            {running ? '진행 중…' : '시작하기'}
           </button>
         </div>
 
         {/* Phase Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {PHASES.map((info, i) => (
-            <div key={i} className={`bg-[var(--bg-elevated)] border border-[var(--border)] ${info.accent} border-l-4 rounded-xl p-5 min-h-64 flex flex-col`}>
+            <div key={i} className={`bg-[var(--bg-elevated)] border border-[var(--border)] ${info.accent} border-l-4 rounded-xl p-5 min-h-64 flex flex-col shadow-sm`}>
               <div className="mb-4">
                 <h2 className="font-semibold text-[var(--text-primary)]">{info.label}</h2>
                 <span className={`text-xs font-mono px-2 py-0.5 rounded ${info.badge}`}>{info.model}</span>
@@ -118,11 +118,16 @@ export default function Home() {
                 </p>
               )}
               {phases[i].status === 'error' && (
-                <p className="text-red-400/90 text-sm whitespace-pre-wrap">{phases[i].content}</p>
+                <p className="text-red-600 text-sm whitespace-pre-wrap">{phases[i].content}</p>
               )}
             </div>
           ))}
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-[var(--text-muted)] text-sm mt-12">
+          made by 마작가
+        </p>
       </div>
     </main>
   )
