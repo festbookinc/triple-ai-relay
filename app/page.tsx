@@ -9,9 +9,9 @@ interface Phase {
 }
 
 const PHASES = [
-  { label: 'Phase 1 — Maker', model: 'claude-sonnet-4-6', accent: 'border-orange-400', badge: 'bg-orange-900 text-orange-300' },
-  { label: 'Phase 2 — Checker', model: 'gpt-4o', accent: 'border-green-400', badge: 'bg-green-900 text-green-300' },
-  { label: 'Phase 3 — Finisher', model: 'gemini-2.5-pro', accent: 'border-blue-400', badge: 'bg-blue-900 text-blue-300' },
+  { label: 'Phase 1 — Maker', model: 'claude-sonnet-4-6', accent: 'border-l-[var(--phase-1)]', badge: 'bg-zinc-800 text-zinc-400' },
+  { label: 'Phase 2 — Checker', model: 'gpt-4o', accent: 'border-l-[var(--phase-2)]', badge: 'bg-zinc-800 text-zinc-400' },
+  { label: 'Phase 3 — Finisher', model: 'gemini-2.5-pro', accent: 'border-l-[var(--phase-3)]', badge: 'bg-zinc-800 text-zinc-400' },
 ]
 
 export default function Home() {
@@ -26,6 +26,17 @@ export default function Home() {
   const update = (index: number, patch: Partial<Phase>) =>
     setPhases(prev => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)))
 
+  const call = async (url: string, body: object) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error(await res.text())
+    const data = await res.json()
+    return data.content as string
+  }
+
   const run = async () => {
     if (!topic.trim() || running) return
     setRunning(true)
@@ -36,28 +47,21 @@ export default function Home() {
     ])
 
     try {
-      const res = await fetch('/api/relay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic }),
-      })
+      update(0, { status: 'loading' })
+      const draft = await call('/api/phase1', { topic })
+      update(0, { status: 'done', content: draft })
 
-      const reader = res.body!.getReader()
-      const decoder = new TextDecoder()
+      update(1, { status: 'loading' })
+      const criticism = await call('/api/phase2', { topic, draft })
+      update(1, { status: 'done', content: criticism })
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const lines = decoder.decode(value).split('\n').filter(l => l.startsWith('data: '))
-        for (const line of lines) {
-          const data = JSON.parse(line.slice(6))
-          if (data.error) { update(2, { status: 'error', content: data.error }); break }
-          if (data.done) break
-          if (data.phase) update(data.phase - 1, { status: data.status, content: data.content ?? '' })
-        }
-      }
+      update(2, { status: 'loading' })
+      const conclusion = await call('/api/phase3', { topic, draft, criticism })
+      update(2, { status: 'done', content: conclusion })
     } catch (e) {
-      update(0, { status: 'error', content: String(e) })
+      const msg = String(e)
+      const failedIndex = phases.findIndex(p => p.status === 'loading')
+      update(failedIndex >= 0 ? failedIndex : 0, { status: 'error', content: msg })
     }
 
     setRunning(false)
@@ -68,14 +72,14 @@ export default function Home() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold mb-2">Triple AI Relay</h1>
-          <p className="text-gray-400">Claude <span className="text-orange-400">Maker</span> → GPT <span className="text-green-400">Checker</span> → Gemini <span className="text-blue-400">Finisher</span></p>
+          <h1 className="text-4xl font-bold mb-2 tracking-tight text-[var(--text-primary)]">Triple AI Relay</h1>
+          <p className="text-[var(--text-secondary)]">Claude Maker → GPT Checker → Gemini Finisher</p>
         </div>
 
         {/* Input */}
         <div className="flex gap-3 mb-8 max-w-3xl mx-auto">
           <input
-            className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-5 py-3 text-base focus:outline-none focus:border-blue-500 placeholder-gray-500 disabled:opacity-50"
+            className="flex-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl px-5 py-3 text-base text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-focus)] focus:ring-1 focus:ring-[var(--border-focus)] placeholder-[var(--text-muted)] disabled:opacity-50 transition-colors"
             placeholder="분석할 주제를 입력하세요..."
             value={topic}
             onChange={e => setTopic(e.target.value)}
@@ -83,7 +87,7 @@ export default function Home() {
             disabled={running}
           />
           <button
-            className="px-7 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 rounded-xl font-semibold transition-colors"
+            className="px-7 py-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-40 rounded-xl font-medium text-white transition-colors"
             onClick={run}
             disabled={running || !topic.trim()}
           >
@@ -94,27 +98,27 @@ export default function Home() {
         {/* Phase Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {PHASES.map((info, i) => (
-            <div key={i} className={`bg-gray-900 border-t-4 ${info.accent} rounded-2xl p-5 min-h-64 flex flex-col`}>
+            <div key={i} className={`bg-[var(--bg-elevated)] border border-[var(--border)] ${info.accent} border-l-4 rounded-xl p-5 min-h-64 flex flex-col`}>
               <div className="mb-4">
-                <h2 className="font-bold text-lg">{info.label}</h2>
+                <h2 className="font-semibold text-[var(--text-primary)]">{info.label}</h2>
                 <span className={`text-xs font-mono px-2 py-0.5 rounded ${info.badge}`}>{info.model}</span>
               </div>
 
               {phases[i].status === 'idle' && (
-                <p className="text-gray-600 text-sm mt-auto">대기 중…</p>
+                <p className="text-[var(--text-muted)] text-sm mt-auto">대기 중…</p>
               )}
               {phases[i].status === 'loading' && (
-                <div className="flex items-center gap-2 text-yellow-400 text-sm mt-2">
+                <div className="flex items-center gap-2 text-[var(--accent)] text-sm mt-2">
                   <span className="animate-pulse">●</span> 생성 중…
                 </div>
               )}
               {phases[i].status === 'done' && (
-                <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">
+                <p className="text-[var(--text-secondary)] text-sm whitespace-pre-wrap leading-relaxed">
                   {phases[i].content}
                 </p>
               )}
               {phases[i].status === 'error' && (
-                <p className="text-red-400 text-sm whitespace-pre-wrap">{phases[i].content}</p>
+                <p className="text-red-400/90 text-sm whitespace-pre-wrap">{phases[i].content}</p>
               )}
             </div>
           ))}
